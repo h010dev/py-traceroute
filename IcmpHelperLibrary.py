@@ -5,12 +5,15 @@ import time
 import select
 
 
+DEBUG: bool = True
+
+
 class IcmpHelperLibrary:
     """
     Class IcmpPacket
 
-    References:                                                                                                      #
-    https://www.iana.org/assignments/icmp-parameters/icmp-parameters.xhtml                                           #
+    References:
+    https://www.iana.org/assignments/icmp-parameters/icmp-parameters.xhtml
     """
 
     class IcmpPacket:
@@ -27,7 +30,7 @@ class IcmpHelperLibrary:
         __ipTimeout = 30
         __ttl = 255                     # Time to live
 
-        __DEBUG_IcmpPacket = False      # Allows for debug output
+        __DEBUG_IcmpPacket = DEBUG      # Allows for debug output
 
         def getIcmpTarget(self):
             return self.__icmpTarget
@@ -151,6 +154,25 @@ class IcmpHelperLibrary:
 
         def __validateIcmpReplyPacketWithOriginalPingData(self, icmpReplyPacket):
             # Hint: Work through comparing each value and identify if this is a valid response.
+
+            # TODO 
+            # Confirm the following items received are the same as what was sent:
+            #   * sequence number
+            #   * packet identifier
+            #   * raw data
+
+            # TODO
+            # Set the valid data variable in the IcmpPacket_EchoReply class based on the outcome of
+            # the data comparison.
+
+            # TODO
+            # Create variables within the IcmpPacket_EchoReply class that identify whether each value
+            # that can be obtained from the class is valid.
+
+            # TODO
+            # Create debug messages that show the expected and the actual values along with the result
+            # of the comparison.
+
             icmpReplyPacket.setIsValidResponse(True)
             pass
 
@@ -246,10 +268,10 @@ class IcmpHelperLibrary:
 
     class IcmpPacket_EchoReply:
         """
-        Class IcmpPacket_EchoReply                                                                                       #
-                                                                                                                         #
-        References:                                                                                                      #
-        http://www.networksorcery.com/enp/protocol/icmp/msg0.htm                                                         #
+        Class IcmpPacket_EchoReply
+
+        References:
+        http://www.networksorcery.com/enp/protocol/icmp/msg0.htm
         """
 
         __recvPacket = b''
@@ -318,6 +340,14 @@ class IcmpHelperLibrary:
             return struct.unpack("!" + formatCode, self.__recvPacket[basePosition:basePosition + numberOfbytes])[0]
 
         def printResultToConsole(self, ttl, timeReceived, addr):
+            # TODO
+            # Identify if the echo response is valid and report the error information details.
+
+            # TODO
+            # Modify output to correspond to the way a standard ping program works. 
+            # Report minimum, maximum, and average RTTs at the end of all pings from client.
+            # Calculate packet loss rate (in percentage).
+
             bytes = struct.calcsize("d")
             timeSent = struct.unpack("d", self.__recvPacket[28:28 + bytes])[0]
             print("  TTL=%d    RTT=%.0f ms    Type=%d    Code=%d        Identifier=%d    Sequence Number=%d    %s" %
@@ -332,7 +362,7 @@ class IcmpHelperLibrary:
                   )
                  )
 
-    __DEBUG_IcmpHelperLibrary = False                  # Allows for debug output
+    __DEBUG_IcmpHelperLibrary = DEBUG                   # Allows for debug output
 
     def __sendIcmpEchoRequest(self, host):
         print("sendIcmpEchoRequest Started...") if self.__DEBUG_IcmpHelperLibrary else 0
@@ -357,9 +387,13 @@ class IcmpHelperLibrary:
 
     def __sendIcmpTraceRoute(self, host):
         print("sendIcmpTraceRoute Started...") if self.__DEBUG_IcmpHelperLibrary else 0
+        # TODO
         # Build code for trace route here
 
     def sendPing(self, targetHost):
+        # TODO
+        # Parse ICMP response error codes and display corresponding error results to user.
+
         print("ping Started...") if self.__DEBUG_IcmpHelperLibrary else 0
         self.__sendIcmpEchoRequest(targetHost)
 
