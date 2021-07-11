@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 from socket import *
 import struct
@@ -152,7 +154,7 @@ class IcmpHelperLibrary:
             self.__recalculateChecksum()        # Result will set new checksum value
             self.__packHeader()                 # Header is rebuilt to include new checksum value
 
-        def __validateIcmpReplyPacketWithOriginalPingData(self, icmpReplyPacket):
+        def __validateIcmpReplyPacketWithOriginalPingData(self, icmpReplyPacket: IcmpHelperLibrary.IcmpPacket_EchoReply):
             # Hint: Work through comparing each value and identify if this is a valid response.
 
             # TODO 
@@ -160,6 +162,22 @@ class IcmpHelperLibrary:
             #   * sequence number
             #   * packet identifier
             #   * raw data
+
+            if self.__DEBUG_IcmpPacket:
+                print('\n' + 50 * '=' + " ICMP Packet Sent/Received " + 50 * '=' + '\n')
+                print("Type:     ", end='')
+                print(f"{self.getIcmpType()}" + 27 * '\t' + f"|| {icmpReplyPacket.getIcmpType()}")
+                print("Code:     ", end='')
+                print(f"{self.getIcmpCode()}" + 27 * '\t' + f"|| {icmpReplyPacket.getIcmpCode()}")
+                print("Checksum: ", end='')
+                print(f"{self.getPacketChecksum()}" + 25 * '\t' + f"|| {icmpReplyPacket.getIcmpHeaderChecksum()}")
+                print("ID:       ", end='')
+                print(f"{self.getPacketIdentifier()}" + 25 * '\t' + f"|| {icmpReplyPacket.getIcmpIdentifier()}")
+                print("Sequence: ", end='')  
+                print(f"{self.getPacketSequenceNumber()}" + 27 * '\t' + f"|| {icmpReplyPacket.getIcmpSequenceNumber()}")
+                print("Data:     ", end='')
+                print(f"{self.getDataRaw()}\t|| {icmpReplyPacket.getIcmpData()}")
+                print()
 
             # TODO
             # Set the valid data variable in the IcmpPacket_EchoReply class based on the outcome of
@@ -383,7 +401,10 @@ class IcmpHelperLibrary:
 
             icmpPacket.printIcmpPacketHeader_hex() if self.__DEBUG_IcmpHelperLibrary else 0
             icmpPacket.printIcmpPacket_hex() if self.__DEBUG_IcmpHelperLibrary else 0
+            # TODO
             # we should be confirming values are correct, such as identifier and sequence number and data
+            # Parse ICMP response error codes and display corresponding error results to user.
+
 
     def __sendIcmpTraceRoute(self, host):
         print("sendIcmpTraceRoute Started...") if self.__DEBUG_IcmpHelperLibrary else 0
@@ -391,9 +412,6 @@ class IcmpHelperLibrary:
         # Build code for trace route here
 
     def sendPing(self, targetHost):
-        # TODO
-        # Parse ICMP response error codes and display corresponding error results to user.
-
         print("ping Started...") if self.__DEBUG_IcmpHelperLibrary else 0
         self.__sendIcmpEchoRequest(targetHost)
 
