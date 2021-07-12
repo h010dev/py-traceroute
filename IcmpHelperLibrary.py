@@ -216,45 +216,111 @@ class IcmpHelperLibrary:
             self.__recalculateChecksum()        # Result will set new checksum value
             self.__packHeader()                 # Header is rebuilt to include new checksum value
 
-        def __validateIcmpReplyPacketWithOriginalPingData(self, icmpReplyPacket: IcmpHelperLibrary.IcmpPacket_EchoReply):
-            # Hint: Work through comparing each value and identify if this is a valid response.
+        def __validateIcmpReplyPacketWithOriginalPingData(
+            self, icmpReplyPacket: IcmpHelperLibrary.IcmpPacket_EchoReply) -> None:
 
-            # TODO 
-            # Confirm the following items received are the same as what was sent:
-            #   * sequence number
-            #   * packet identifier
-            #   * raw data
+            # ICMP Echo Reply should have a Type = 0 and Code = 0
+            # Source: 
+            expType: int = 0
+            expCode: int = 0
 
+            # Validate each field in ICMP Echo Reply message
+
+            # Check if Type = 0 
+            if icmpReplyPacket.getIcmpType() == expType:
+                icmpReplyPacket.setIsValidIcmpType(True)
+            else:
+                icmpReplyPacket.setIsValidResponse(False)
+
+            # Check if Code = 0
+            if icmpReplyPacket.getIcmpCode() == expCode:
+                icmpReplyPacket.setIsValidIcmpCode(True)
+            else:
+                icmpReplyPacket.setIsValidResponse(False)
+
+            # Check for any bit errors
+            icmpReplyPacket.validateChecksum()
+
+            # Check if ICMP Echo Request Sequence Number = ICMP Echo Reply Sequence Number
+            if self.getPacketSequenceNumber() == icmpReplyPacket.getIcmpSequenceNumber():
+                icmpReplyPacket.setIsValidIcmpSequenceNumber(True)
+            else:
+                icmpReplyPacket.setIsValidResponse(False)
+
+            # Check if ICMP Echo Request ID = ICMP Echo Reply ID
+            if self.getPacketIdentifier() == icmpReplyPacket.getIcmpIdentifier():
+                icmpReplyPacket.setIsValidIcmpIdentifier(True)
+            else:
+                icmpReplyPacket.setIsValidResponse(False)
+
+            # Check if ICMP Echo Request Data = ICMP Echo Reply Data
+            if self.getDataRaw() == icmpReplyPacket.getIcmpData():
+                icmpReplyPacket.setIsValidIcmpData(True)
+            else:
+                icmpReplyPacket.setIsValidResponse(False)
+
+            # Format:
+            # [Status]    Field    Expected    Actual
             if self.__DEBUG_IcmpPacket:
-                print('\n' + 50 * '=' + " ICMP Packet Sent/Received " + 50 * '=' + '\n')
+                print('\n' + 51 * '=' + " ICMP Packet Echo Reply " + 51 * '=')
+                print("Status" + '\t' + "Field" + 3 * '\t' + "Expected" + 24 * '\t' + " Actual")
+
+                # Type
+                if icmpReplyPacket.isValidIcmpType():
+                    print("[OK]    ", end='')
+                else:
+                    print("[ERROR] ", end='')
                 print("Type:     ", end='')
-                print(f"{self.getIcmpType()}" + 27 * '\t' + f"|| {icmpReplyPacket.getIcmpType()}")
+                print(f"{expType}" + 27 * '\t' + f"|| {icmpReplyPacket.getIcmpType()}")
+
+                # Code
+                if icmpReplyPacket.isValidIcmpCode():
+                    print("[OK]    ", end='')
+                else:
+                    print("[ERROR] ", end='')
                 print("Code:     ", end='')
-                print(f"{self.getIcmpCode()}" + 27 * '\t' + f"|| {icmpReplyPacket.getIcmpCode()}")
+                print(f"0" + 27 * '\t' + f"|| {icmpReplyPacket.getIcmpCode()}")
+
+                # Checksum
+                if icmpReplyPacket.isValidChecksum():
+                    print("[OK]    ", end='')
+                else:
+                    print("[ERROR] ", end='')
                 print("Checksum: ", end='')
-                print(f"{self.getPacketChecksum()}" + 25 * '\t' + f"|| {icmpReplyPacket.getIcmpHeaderChecksum()}")
+                print(f"{icmpReplyPacket.getIcmpHeaderChecksum()}" + 25 * '\t', end='')
+                print(f"|| {icmpReplyPacket.getComputedChecksum()}")
+
+                # ID
+                if icmpReplyPacket.isValidIcmpIdentifier():
+                    print("[OK]    ", end='')
+                else:
+                    print("[ERROR] ", end='')
                 print("ID:       ", end='')
-                print(f"{self.getPacketIdentifier()}" + 25 * '\t' + f"|| {icmpReplyPacket.getIcmpIdentifier()}")
+                print(f"{self.getPacketIdentifier()}" + 26 * '\t' + f"|| {icmpReplyPacket.getIcmpIdentifier()}")
+
+                # Sequence Number
+                if icmpReplyPacket.isValidIcmpSequenceNumber():
+                    print("[OK]    ", end='')
+                else:
+                    print("[ERROR] ", end='')
                 print("Sequence: ", end='')  
                 print(f"{self.getPacketSequenceNumber()}" + 27 * '\t' + f"|| {icmpReplyPacket.getIcmpSequenceNumber()}")
+
+                # Data
+                if icmpReplyPacket.isValidIcmpData():
+                    print("[OK]    ", end='')
+                else:
+                    print("[ERROR] ", end='')
                 print("Data:     ", end='')
                 print(f"{self.getDataRaw()}\t|| {icmpReplyPacket.getIcmpData()}")
+
                 print()
 
-            # TODO
-            # Set the valid data variable in the IcmpPacket_EchoReply class based on the outcome of
-            # the data comparison.
-
-            # TODO
-            # Create variables within the IcmpPacket_EchoReply class that identify whether each value
-            # that can be obtained from the class is valid.
-
-            # TODO
-            # Create debug messages that show the expected and the actual values along with the result
-            # of the comparison.
-
-            icmpReplyPacket.setIsValidResponse(True)
-            pass
+            # Set isValidResponse flag to True if all fields valid
+            if icmpReplyPacket.isValidIcmpType() and icmpReplyPacket.isValidIcmpCode() and \
+                    icmpReplyPacket.isValidChecksum() and icmpReplyPacket.isValidIcmpIdentifier() and \
+                    icmpReplyPacket.isValidIcmpSequenceNumber() and icmpReplyPacket.isValidIcmpData():
+                icmpReplyPacket.setIsValidResponse(True)
 
         ################################################################################################################
         # IcmpPacket Class Public Functions                                                                            #
@@ -371,15 +437,23 @@ class IcmpHelperLibrary:
     #                                                                                                                  #
     ####################################################################################################################
     class IcmpPacket_EchoReply:
-        """
-        Class IcmpPacket_EchoReply
-
-        References:
-        http://www.networksorcery.com/enp/protocol/icmp/msg0.htm
-        """
-
-        __recvPacket = b''
-        __isValidResponse = False
+        ################################################################################################################
+        # IcmpPacket_EchoReply Class Scope Variables                                                                   #
+        #                                                                                                              #
+        #                                                                                                              #
+        #                                                                                                              #
+        #                                                                                                              #
+        #                                                                                                              #
+        ################################################################################################################
+        __recvPacket: bytes = b''
+        __isValidResponse: bool = False
+        __isValidIcmpType: bool = False
+        __isValidIcmpCode: bool = False
+        __isValidChecksum: bool = False
+        __isValidIcmpIdentifier: bool = False
+        __isValidIcmpSequenceNumber: bool = False
+        __isValidIcmpData: bool = False
+        __computedChecksum: int = 0
 
         ################################################################################################################
         # IcmpPacket_EchoReply Constructors                                                                            #
@@ -448,10 +522,57 @@ class IcmpHelperLibrary:
             # This accounts for bytes 36 to the end of the packet.
             return self.__recvPacket[36:].decode('utf-8')
 
-        def isValidResponse(self):
+        def getComputedChecksum(self) -> int:
+            return self.__computedChecksum
+
+        def isValidIcmpType(self) -> bool:
+            return self.__isValidIcmpType
+
+        def isValidIcmpCode(self) -> bool:
+            return self.__isValidIcmpCode
+
+        def isValidChecksum(self) -> bool:
+            return self.__isValidChecksum
+
+        def isValidIcmpSequenceNumber(self) -> bool:
+            return self.__isValidIcmpSequenceNumber
+
+        def isValidIcmpIdentifier(self) -> bool:
+            return self.__isValidIcmpIdentifier
+
+        def isValidIcmpData(self) -> bool:
+            return self.__isValidIcmpData
+
+        def isValidResponse(self) -> bool:
             return self.__isValidResponse
 
-        def setIsValidResponse(self, booleanValue):
+        ################################################################################################################
+        # IcmpPacket_EchoReply Setters                                                                                 #
+        #                                                                                                              #
+        #                                                                                                              #
+        #                                                                                                              #
+        #                                                                                                              #
+        #                                                                                                              #
+        ################################################################################################################
+        def setIsValidIcmpCode(self, booleanValue: bool) -> None:
+            self.__isValidIcmpCode = booleanValue
+
+        def setIsValidIcmpType(self, booleanValue: bool) -> None:
+            self.__isValidIcmpType = booleanValue
+
+        def setIsValidChecksum(self, booleanValue: bool) -> None:
+            self.__isValidChecksum = booleanValue
+
+        def setIsValidIcmpSequenceNumber(self, booleanValue: bool) -> None:
+            self.__isValidIcmpSequenceNumber = booleanValue
+
+        def setIsValidIcmpIdentifier(self, booleanValue: bool) -> None:
+            self.__isValidIcmpIdentifier = booleanValue
+
+        def setIsValidIcmpData(self, booleanValue: bool) -> None:
+            self.__isValidIcmpData = booleanValue
+
+        def setIsValidResponse(self, booleanValue: bool) -> None:
             self.__isValidResponse = booleanValue
 
         ################################################################################################################
@@ -465,6 +586,75 @@ class IcmpHelperLibrary:
         def __unpackByFormatAndPosition(self, formatCode: str, basePosition: int) -> int:
             numberOfbytes: int = struct.calcsize(formatCode)
             return struct.unpack("!" + formatCode, self.__recvPacket[basePosition:basePosition + numberOfbytes])[0]
+
+        def __recalculateChecksum(self, reply: bytes) -> None:
+            """
+            Given an ICMP Echo Reply message, compute its checksum.
+
+            Preconditions:
+                1. Checksum field must be zeroed out before computing checksum.
+
+            Similar to IcmpPacket.__recalculateChecksum()
+
+            Source: http://www.networksorcery.com/enp/protocol/icmp/msg0.htm
+            """
+
+            checksum: int = 0
+
+            # This checksum function will work with pairs of values with two separate 16 bit segments. Any remaining
+            # 16 bit segment will be handled on the upper end of the 32 bit segment.
+            countTo: int = (len(reply) // 2) * 2
+
+            # Calculate checksum for all paired segments
+            count: int = 0
+            while count < countTo:
+                thisVal: int = reply[count + 1] * 256 + reply[count]
+                checksum = checksum + thisVal
+                checksum = checksum & 0xffffffff        # Capture 16 bit checksum as 32 bit value
+                count = count + 2
+
+            # Calculate checksum for remaining segment (if there are any)
+            if countTo < len(reply):
+                thisVal = reply[len(reply) - 1]
+                checksum = checksum + thisVal
+                checksum = checksum & 0xffffffff        # Capture as 32 bit value
+
+            # Add 1's Complement Rotation to original checksum
+            checksum = (checksum >> 16) + (checksum & 0xffff)   # Rotate and add to base 16 bits
+            checksum = (checksum >> 16) + checksum              # Rotate and add
+
+            answer: int = ~checksum             # Invert bits
+            answer = answer & 0xffff            # Trim to 16 bit value
+            answer = answer >> 8 | (answer << 8 & 0xff00)
+
+            self.__computedChecksum = answer
+
+        ################################################################################################################
+        # IcmpPacket_EchoReply Public Functions                                                                        #
+        #                                                                                                              #
+        #                                                                                                              #
+        #                                                                                                              #
+        #                                                                                                              #
+        #                                                                                                              #
+        ################################################################################################################
+        def validateChecksum(self) -> None:
+            """
+            Validate the ICMP Echo Reply checksum.
+
+            Source: http://www.networksorcery.com/enp/protocol/icmp/msg0.htm
+            """
+
+            # Extract ICMP Echo Reply and zero out checksum.
+            reply: bytes = self.__recvPacket[20:22] + struct.pack("!H", 0) + self.__recvPacket[24:]
+
+            # Re-Calculate checksum.
+            self.__recalculateChecksum(reply)
+
+            # Compare with original checksum.
+            if self.getIcmpHeaderChecksum() != self.__computedChecksum:
+                self.__isValidChecksum = False
+            else:
+                self.__isValidChecksum = True 
 
         def printResultToConsole(self, ttl, timeReceived, addr):
             # TODO
