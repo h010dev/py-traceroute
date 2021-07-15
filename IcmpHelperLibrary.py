@@ -6,11 +6,10 @@
 #                                                                                                                      #
 #                                                                                                                      #
 ########################################################################################################################
-from __future__ import annotations        # Enable extra type hinting features
-
 import os
 import select
 from socket import *
+from statistics import stdev 
 import struct
 import sys
 import time
@@ -58,21 +57,21 @@ class IcmpHelperLibrary:
         #                                                                                                              #
         #                                                                                                              #
         ################################################################################################################
-        __icmpTarget: str = ""                                     # Remote Host
-        __destinationIpAddress: str = ""                           # Remote Host IP Address
-        __header: bytes = b''                                      # Header after byte packing
-        __data: bytes = b''                                        # Data after encoding
-        __dataRaw: str = ""                                        # Raw string data before encoding
-        __icmpType: int = 0                                        # Valid values are 0-255 (unsigned int, 8 bits)
-        __icmpCode: int = 0                                        # Valid values are 0-255 (unsigned int, 8 bits)
-        __packetChecksum: int = 0                                  # Valid values are 0-65535 (unsigned short, 16 bits)
-        __packetIdentifier: int = 0                                # Valid values are 0-65535 (unsigned short, 16 bits)
-        __packetSequenceNumber: int = 0                            # Valid values are 0-65535 (unsigned short, 16 bits)
+        __icmpTarget: str = ""                # Remote Host
+        __destinationIpAddress: str = ""      # Remote Host IP Address
+        __header: bytes = b''                 # Header after byte packing
+        __data: bytes = b''                   # Data after encoding
+        __dataRaw: str = ""                   # Raw string data before encoding
+        __icmpType: int = 0                   # Valid values are 0-255 (unsigned int, 8 bits)
+        __icmpCode: int = 0                   # Valid values are 0-255 (unsigned int, 8 bits)
+        __packetChecksum: int = 0             # Valid values are 0-65535 (unsigned short, 16 bits)
+        __packetIdentifier: int = 0           # Valid values are 0-65535 (unsigned short, 16 bits)
+        __packetSequenceNumber: int = 0       # Valid values are 0-65535 (unsigned short, 16 bits)
         __ipTimeout: int = 30
-        __ttl: int = 255                                           # Time to live
-        __icmpReplyPacket: IcmpHelperLibrary.IcmpPacket_EchoReply  # ICMP reply packet
+        __ttl: int = 255                      # Time to live
+        __icmpReplyPacket = None              # ICMP reply packet
 
-        __DEBUG_IcmpPacket: bool = False                           # Allows for debug output
+        __DEBUG_IcmpPacket: bool = False      # Allows for debug output
 
         ################################################################################################################
         # IcmpPacket Class Getters                                                                                     #
@@ -106,7 +105,7 @@ class IcmpHelperLibrary:
         def getTtl(self) -> int:
             return self.__ttl
 
-        def getIcmpReplyPacket(self) -> IcmpHelperLibrary.IcmpPacket_EchoReply:
+        def getIcmpReplyPacket(self):
             return self.__icmpReplyPacket
 
         ################################################################################################################
@@ -142,7 +141,7 @@ class IcmpHelperLibrary:
         def setTtl(self, ttl: int) -> None:
             self.__ttl = ttl
 
-        def setIcmpReplyPacket(self, reply: IcmpHelperLibrary.IcmpPacket_EchoReply) -> None:
+        def setIcmpReplyPacket(self, reply) -> None:
             self.__icmpReplyPacket = reply
 
         ################################################################################################################
@@ -224,9 +223,7 @@ class IcmpHelperLibrary:
             self.__recalculateChecksum()        # Result will set new checksum value
             self.__packHeader()                 # Header is rebuilt to include new checksum value
 
-        def __validateIcmpReplyPacketWithOriginalPingData(
-            self, icmpReplyPacket: IcmpHelperLibrary.IcmpPacket_EchoReply) -> None:
-
+        def __validateIcmpReplyPacketWithOriginalPingData(self, icmpReplyPacket) -> None:
             # Track err messages
             err: str = ''
 
@@ -757,11 +754,10 @@ class IcmpHelperLibrary:
     def __sendIcmpEchoRequest(self, host):
         print("sendIcmpEchoRequest Started...") if self.__DEBUG_IcmpHelperLibrary else 0
 
-        minRtt: int = 0
-        maxRtt: int = 0
-        totalRtt: int = 0
-        avgRtt: int = 0
+        rtts: List[int] = []
+        sentPckts: int = 0
 
+        tStart: int = time.time()
         for i in range(4):
             # Build packet
             icmpPacket = IcmpHelperLibrary.IcmpPacket()
@@ -782,20 +778,19 @@ class IcmpHelperLibrary:
             # we should be confirming values are correct, such as identifier and sequence number and data
             # Parse ICMP response error codes and display corresponding error results to user.
 
-            rtt: int = icmpPacket.getIcmpReplyPacket().getRtt()
-            if minRtt == 0 and maxRtt == 0:
-                minRtt = maxRtt = rtt
-                maxRtt = rtt
-            else:
-                if rtt < minRtt:
-                    minRtt = rtt
-                if rtt > maxRtt:
-                    maxRtt = rtt
+            sentPckts += 1
+            if icmpPacket.getIcmpReplyPacket() is not None:
+                rtts.append(icmpPacket.getIcmpReplyPacket().getRtt())
 
-            totalRtt += rtt
-
-        avgRtt = totalRtt / 4
-        print(f"RTT: min: {minRtt:<4.0f}\tmax: {maxRtt:<4.0f}\tavg: {avgRtt:<4.0f}")
+        tEnd: int = time.time()
+        print(f"\n--- {host} statistics ---")
+        print(f"{sentPckts} packets transmitted, ", end='')
+        print(f"{len(rtts)} received, ", end='')
+        print(f"%{(1 - (len(rtts) / sentPckts)) * 100:.0f} packet loss, ", end='')
+        print(f"time {(tEnd - tStart) * 1000:.0f} ms")
+        if len(rtts) > 0:
+            print("rtt min/avg/max/mdev = ", end='')
+            print(f"{min(rtts):.3f}/{(sum(rtts) / len(rtts)):.3f}/{max(rtts):.3f}/{stdev(rtts):.3f} ms")
 
     def __sendIcmpTraceRoute(self, host):
         print("sendIcmpTraceRoute Started...") if self.__DEBUG_IcmpHelperLibrary else 0
@@ -833,6 +828,7 @@ def main():
 
     # Choose one of the following by uncommenting out the line
     icmpHelperPing.sendPing("209.233.126.254")
+    icmpHelperPing.sendPing("sape.com.au")
     # icmpHelperPing.sendPing("www.google.com")
     # icmpHelperPing.sendPing("oregonstate.edu")
     # icmpHelperPing.sendPing("gaia.cs.umass.edu")
