@@ -12,6 +12,7 @@ import os
 import select
 from socket import *
 import struct
+import sys
 import time
 
 
@@ -57,20 +58,21 @@ class IcmpHelperLibrary:
         #                                                                                                              #
         #                                                                                                              #
         ################################################################################################################
-        __icmpTarget: str = ""                 # Remote Host
-        __destinationIpAddress: str = ""       # Remote Host IP Address
-        __header: bytes = b''                  # Header after byte packing
-        __data: bytes = b''                    # Data after encoding
-        __dataRaw: str = ""                    # Raw string data before encoding
-        __icmpType: int = 0                    # Valid values are 0-255 (unsigned int, 8 bits)
-        __icmpCode: int = 0                    # Valid values are 0-255 (unsigned int, 8 bits)
-        __packetChecksum: int = 0              # Valid values are 0-65535 (unsigned short, 16 bits)
-        __packetIdentifier: int = 0            # Valid values are 0-65535 (unsigned short, 16 bits)
-        __packetSequenceNumber: int = 0        # Valid values are 0-65535 (unsigned short, 16 bits)
+        __icmpTarget: str = ""                                     # Remote Host
+        __destinationIpAddress: str = ""                           # Remote Host IP Address
+        __header: bytes = b''                                      # Header after byte packing
+        __data: bytes = b''                                        # Data after encoding
+        __dataRaw: str = ""                                        # Raw string data before encoding
+        __icmpType: int = 0                                        # Valid values are 0-255 (unsigned int, 8 bits)
+        __icmpCode: int = 0                                        # Valid values are 0-255 (unsigned int, 8 bits)
+        __packetChecksum: int = 0                                  # Valid values are 0-65535 (unsigned short, 16 bits)
+        __packetIdentifier: int = 0                                # Valid values are 0-65535 (unsigned short, 16 bits)
+        __packetSequenceNumber: int = 0                            # Valid values are 0-65535 (unsigned short, 16 bits)
         __ipTimeout: int = 30
-        __ttl: int = 255                       # Time to live
+        __ttl: int = 255                                           # Time to live
+        __icmpReplyPacket: IcmpHelperLibrary.IcmpPacket_EchoReply  # ICMP reply packet
 
-        __DEBUG_IcmpPacket: bool = True        # Allows for debug output
+        __DEBUG_IcmpPacket: bool = False                           # Allows for debug output
 
         ################################################################################################################
         # IcmpPacket Class Getters                                                                                     #
@@ -104,6 +106,9 @@ class IcmpHelperLibrary:
         def getTtl(self) -> int:
             return self.__ttl
 
+        def getIcmpReplyPacket(self) -> IcmpHelperLibrary.IcmpPacket_EchoReply:
+            return self.__icmpReplyPacket
+
         ################################################################################################################
         # IcmpPacket Class Setters                                                                                     #
         #                                                                                                              #
@@ -136,6 +141,9 @@ class IcmpHelperLibrary:
 
         def setTtl(self, ttl: int) -> None:
             self.__ttl = ttl
+
+        def setIcmpReplyPacket(self, reply: IcmpHelperLibrary.IcmpPacket_EchoReply) -> None:
+            self.__icmpReplyPacket = reply
 
         ################################################################################################################
         # IcmpPacket Class Private Functions                                                                           #
@@ -219,6 +227,9 @@ class IcmpHelperLibrary:
         def __validateIcmpReplyPacketWithOriginalPingData(
             self, icmpReplyPacket: IcmpHelperLibrary.IcmpPacket_EchoReply) -> None:
 
+            # Track err messages
+            err: str = ''
+
             # ICMP Echo Reply should have a Type = 0 and Code = 0
             # Source: 
             expType: int = 0
@@ -231,90 +242,110 @@ class IcmpHelperLibrary:
                 icmpReplyPacket.setIsValidIcmpType(True)
             else:
                 icmpReplyPacket.setIsValidResponse(False)
+                err += "ERROR: Invalid ICMP Type\n"
+                err += f"\tExpected: {expType}\n"
+                err += f"\tActual:   {icmpReplyPacket.getIcmpType()}\n\n"
 
             # Check if Code = 0
             if icmpReplyPacket.getIcmpCode() == expCode:
                 icmpReplyPacket.setIsValidIcmpCode(True)
             else:
                 icmpReplyPacket.setIsValidResponse(False)
+                err += "ERROR: Invalid ICMP Code\n"
+                err += f"\tExpected: {expCode}\n"
+                err += f"\tActual:   {icmpReplyPacket.getIcmpCode()}\n\n"
 
             # Check for any bit errors
             icmpReplyPacket.validateChecksum()
-
-            # Check if ICMP Echo Request Sequence Number = ICMP Echo Reply Sequence Number
-            if self.getPacketSequenceNumber() == icmpReplyPacket.getIcmpSequenceNumber():
-                icmpReplyPacket.setIsValidIcmpSequenceNumber(True)
-            else:
-                icmpReplyPacket.setIsValidResponse(False)
+            if not icmpReplyPacket.isValidChecksum():
+                err += "ERROR: Invalid Header Checksum\n"
+                err += f"\tExpected: {icmpReplyPacket.getIcmpHeaderChecksum()}\n"
+                err += f"\tActual:   {icmpReplyPacket.getComputedChecksum()}\n\n"
 
             # Check if ICMP Echo Request ID = ICMP Echo Reply ID
             if self.getPacketIdentifier() == icmpReplyPacket.getIcmpIdentifier():
                 icmpReplyPacket.setIsValidIcmpIdentifier(True)
             else:
                 icmpReplyPacket.setIsValidResponse(False)
+                err += "ERROR: Invalid ID\n"
+                err += f"\tExpected: {self.getPacketIdentifier()}\n"
+                err += f"\tActual:   {icmpReplyPacket.getIcmpIdentifier()}\n\n"
+
+            # Check if ICMP Echo Request Sequence Number = ICMP Echo Reply Sequence Number
+            if self.getPacketSequenceNumber() == icmpReplyPacket.getIcmpSequenceNumber():
+                icmpReplyPacket.setIsValidIcmpSequenceNumber(True)
+                icmpReplyPacket.setIsValidResponse(False)
+            else:
+                icmpReplyPacket.setIsValidResponse(False)
+                err += "ERROR: Invalid Sequence Number\n"
+                err += f"\tExpected: {self.getPacketSequenceNumber()}\n"
+                err += f"\tActual:   {icmpReplyPacket.getIcmpSequenceNumber()}\n\n"
 
             # Check if ICMP Echo Request Data = ICMP Echo Reply Data
             if self.getDataRaw() == icmpReplyPacket.getIcmpData():
                 icmpReplyPacket.setIsValidIcmpData(True)
             else:
                 icmpReplyPacket.setIsValidResponse(False)
+                err += "ERROR: Invalid Data\n"
+                err += f"\tExpected: {self.getDataRaw()}\n"
+                err += f"\tActual:   {icmpReplyPacket.getIcmpData()}\n"
+
+            icmpReplyPacket.addErrMsg(err)
 
             # Format:
             # [Status]    Field    Expected    Actual
-            if self.__DEBUG_IcmpPacket:
-                print('\n' + 51 * '=' + " ICMP Packet Echo Reply " + 51 * '=')
-                print("Status" + '\t' + "Field" + 3 * '\t' + "Expected" + 24 * '\t' + " Actual")
+            print('\n' + 51 * '=' + " ICMP Packet Echo Reply " + 51 * '=', file=sys.stderr)
+            print("Status" + '\t' + "Field" + 3 * '\t' + "Expected" + 24 * '\t' + " Actual", file=sys.stderr)
 
-                # Type
-                if icmpReplyPacket.isValidIcmpType():
-                    print("[OK]    ", end='')
-                else:
-                    print("[ERROR] ", end='')
-                print("Type:     ", end='')
-                print(f"{expType}" + 27 * '\t' + f"|| {icmpReplyPacket.getIcmpType()}")
+            # Type
+            if icmpReplyPacket.isValidIcmpType():
+                print("[OK]    ", end='', file=sys.stderr)
+            else:
+                print("[ERROR] ", end='', file=sys.stderr)
+            print("Type:     ", end='', file=sys.stderr)
+            print(f"{expType:<53} || {icmpReplyPacket.getIcmpType():<53}", file=sys.stderr)
 
-                # Code
-                if icmpReplyPacket.isValidIcmpCode():
-                    print("[OK]    ", end='')
-                else:
-                    print("[ERROR] ", end='')
-                print("Code:     ", end='')
-                print(f"0" + 27 * '\t' + f"|| {icmpReplyPacket.getIcmpCode()}")
+            # Code
+            if icmpReplyPacket.isValidIcmpCode():
+                print("[OK]    ", end='', file=sys.stderr)
+            else:
+                print("[ERROR] ", end='', file=sys.stderr)
+            print("Code:     ", end='', file=sys.stderr)
+            print(f"{expCode:<53} || {icmpReplyPacket.getIcmpCode():<53}", file=sys.stderr)
 
-                # Checksum
-                if icmpReplyPacket.isValidChecksum():
-                    print("[OK]    ", end='')
-                else:
-                    print("[ERROR] ", end='')
-                print("Checksum: ", end='')
-                print(f"{icmpReplyPacket.getIcmpHeaderChecksum()}" + 25 * '\t', end='')
-                print(f"|| {icmpReplyPacket.getComputedChecksum()}")
+            # Checksum
+            if icmpReplyPacket.isValidChecksum():
+                print("[OK]    ", end='', file=sys.stderr)
+            else:
+                print("[ERROR] ", end='', file=sys.stderr)
+            print("Checksum: ", end='', file=sys.stderr)
+            print(f"{icmpReplyPacket.getIcmpHeaderChecksum():<53} ", end='', file=sys.stderr)
+            print(f"|| {icmpReplyPacket.getComputedChecksum():<53}", file=sys.stderr)
 
-                # ID
-                if icmpReplyPacket.isValidIcmpIdentifier():
-                    print("[OK]    ", end='')
-                else:
-                    print("[ERROR] ", end='')
-                print("ID:       ", end='')
-                print(f"{self.getPacketIdentifier()}" + 26 * '\t' + f"|| {icmpReplyPacket.getIcmpIdentifier()}")
+            # ID
+            if icmpReplyPacket.isValidIcmpIdentifier():
+                print("[OK]    ", end='', file=sys.stderr)
+            else:
+                print("[ERROR] ", end='', file=sys.stderr)
+            print("ID:       ", end='', file=sys.stderr)
+            print(f"{self.getPacketIdentifier():<53} || {icmpReplyPacket.getIcmpIdentifier():<53}", file=sys.stderr)
 
-                # Sequence Number
-                if icmpReplyPacket.isValidIcmpSequenceNumber():
-                    print("[OK]    ", end='')
-                else:
-                    print("[ERROR] ", end='')
-                print("Sequence: ", end='')  
-                print(f"{self.getPacketSequenceNumber()}" + 27 * '\t' + f"|| {icmpReplyPacket.getIcmpSequenceNumber()}")
+            # Sequence Number
+            if icmpReplyPacket.isValidIcmpSequenceNumber():
+                print("[OK]    ", end='', file=sys.stderr)
+            else:
+                print("[ERROR] ", end='', file=sys.stderr)
+            print("Sequence: ", end='', file=sys.stderr)  
+            print(f"{self.getPacketSequenceNumber():<53} || {icmpReplyPacket.getIcmpSequenceNumber():<53}",
+                  file=sys.stderr)
 
-                # Data
-                if icmpReplyPacket.isValidIcmpData():
-                    print("[OK]    ", end='')
-                else:
-                    print("[ERROR] ", end='')
-                print("Data:     ", end='')
-                print(f"{self.getDataRaw()}\t|| {icmpReplyPacket.getIcmpData()}")
-
-                print()
+            # Data
+            if icmpReplyPacket.isValidIcmpData():
+                print("[OK]    ", end='', file=sys.stderr)
+            else:
+                print("[ERROR] ", end='', file=sys.stderr)
+            print("Data:     ", end='', file=sys.stderr)
+            print(f"{self.getDataRaw():<53} || {icmpReplyPacket.getIcmpData():<53}\n", file=sys.stderr)
 
             # Set isValidResponse flag to True if all fields valid
             if icmpReplyPacket.isValidIcmpType() and icmpReplyPacket.isValidIcmpCode() and \
@@ -392,7 +423,8 @@ class IcmpHelperLibrary:
                               )
 
                     elif icmpType == 0:                         # Echo Reply
-                        icmpReplyPacket = IcmpHelperLibrary.IcmpPacket_EchoReply(recvPacket)
+                        icmpReplyPacket: IcmpPacket_EchoReply = IcmpHelperLibrary.IcmpPacket_EchoReply(recvPacket)
+                        self.setIcmpReplyPacket(icmpReplyPacket)
                         self.__validateIcmpReplyPacketWithOriginalPingData(icmpReplyPacket)
                         icmpReplyPacket.printResultToConsole(self.getTtl(), timeReceived, addr)
                         return      # Echo reply is the end and therefore should return
@@ -454,6 +486,8 @@ class IcmpHelperLibrary:
         __isValidIcmpSequenceNumber: bool = False
         __isValidIcmpData: bool = False
         __computedChecksum: int = 0
+        __rtt: int = 0
+        __errMsgs: str = ''
 
         ################################################################################################################
         # IcmpPacket_EchoReply Constructors                                                                            #
@@ -525,6 +559,12 @@ class IcmpHelperLibrary:
         def getComputedChecksum(self) -> int:
             return self.__computedChecksum
 
+        def getRtt(self) -> int:
+            return self.__rtt
+
+        def getErrMsgs(self) -> str:
+            return self.__errMsgs
+
         def isValidIcmpType(self) -> bool:
             return self.__isValidIcmpType
 
@@ -574,6 +614,12 @@ class IcmpHelperLibrary:
 
         def setIsValidResponse(self, booleanValue: bool) -> None:
             self.__isValidResponse = booleanValue
+
+        def setRtt(self, rtt: int) -> None:
+            self.__rtt = rtt
+
+        def addErrMsg(self, msg: str) -> None:
+            self.__errMsgs += msg
 
         ################################################################################################################
         # IcmpPacket_EchoReply Private Functions                                                                       #
@@ -657,8 +703,9 @@ class IcmpHelperLibrary:
                 self.__isValidChecksum = True 
 
         def printResultToConsole(self, ttl, timeReceived, addr):
-            # TODO
-            # Identify if the echo response is valid and report the error information details.
+            # Display error messages
+            if not self.isValidResponse():
+                print(f"\n{self.getErrMsgs()}")
 
             # TODO
             # Modify output to correspond to the way a standard ping program works. 
@@ -667,10 +714,11 @@ class IcmpHelperLibrary:
 
             bytes = struct.calcsize("d")
             timeSent = struct.unpack("d", self.__recvPacket[28:28 + bytes])[0]
+            self.setRtt((timeReceived - timeSent) * 1000)
             print("  TTL=%d    RTT=%.0f ms    Type=%d    Code=%d        Identifier=%d    Sequence Number=%d    %s" %
                   (
                       ttl,
-                      (timeReceived - timeSent) * 1000,
+                      self.getRtt(),
                       self.getIcmpType(),
                       self.getIcmpCode(),
                       self.getIcmpIdentifier(),
@@ -709,6 +757,11 @@ class IcmpHelperLibrary:
     def __sendIcmpEchoRequest(self, host):
         print("sendIcmpEchoRequest Started...") if self.__DEBUG_IcmpHelperLibrary else 0
 
+        minRtt: int = 0
+        maxRtt: int = 0
+        totalRtt: int = 0
+        avgRtt: int = 0
+
         for i in range(4):
             # Build packet
             icmpPacket = IcmpHelperLibrary.IcmpPacket()
@@ -729,6 +782,20 @@ class IcmpHelperLibrary:
             # we should be confirming values are correct, such as identifier and sequence number and data
             # Parse ICMP response error codes and display corresponding error results to user.
 
+            rtt: int = icmpPacket.getIcmpReplyPacket().getRtt()
+            if minRtt == 0 and maxRtt == 0:
+                minRtt = maxRtt = rtt
+                maxRtt = rtt
+            else:
+                if rtt < minRtt:
+                    minRtt = rtt
+                if rtt > maxRtt:
+                    maxRtt = rtt
+
+            totalRtt += rtt
+
+        avgRtt = totalRtt / 4
+        print(f"RTT: min: {minRtt:<4.0f}\tmax: {maxRtt:<4.0f}\tavg: {avgRtt:<4.0f}")
 
     def __sendIcmpTraceRoute(self, host):
         print("sendIcmpTraceRoute Started...") if self.__DEBUG_IcmpHelperLibrary else 0
