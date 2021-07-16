@@ -6,7 +6,6 @@
 #                                                                                                                      #
 #                                                                                                                      #
 ########################################################################################################################
-from enum import Enum
 import os
 import select
 from socket import *
@@ -28,8 +27,8 @@ import time
 # IcmpType                                                                                                             #
 #                                                                                                                      #
 # References:                                                                                                          #
-# http://www.iana.org/assignments/icmp-parameters/icmp-parameters.xhtmls                                               #
-# http://sites.uclouvain.be/SystInfo/usr/include/netinet/ip_icmp.h.htmls                                               #
+# http://www.iana.org/assignments/icmp-parameters/icmp-parameters.xhtml                                                #
+# http://sites.uclouvain.be/SystInfo/usr/include/netinet/ip_icmp.h.html                                                #
 ########################################################################################################################
 ICMP_ECHOREPLY       = 0    # Echo Reply
 ICMP_DEST_UNREACH    = 3    # Destination Unreachable
@@ -49,8 +48,8 @@ ICMP_EXT_ECHOREPLY   = 43   # Extended Echo Reply
 # IcmpCode                                                                                                             #
 #                                                                                                                      #
 # References:                                                                                                          #
-# http://www.iana.org/assignments/icmp-parameters/icmp-parameters.xhtmls                                               #
-# http://sites.uclouvain.be/SystInfo/usr/include/netinet/ip_icmp.h.htmls                                               #
+# http://www.iana.org/assignments/icmp-parameters/icmp-parameters.xhtml                                                #
+# http://sites.uclouvain.be/SystInfo/usr/include/netinet/ip_icmp.h.html                                                #
 ########################################################################################################################
 # Codes for UNREACH
 ICMP_NET_UNREACH     = 0    # Network Unreachable
@@ -490,19 +489,24 @@ class IcmpHelperLibrary:
                     # Fetch the ICMP type and code from the received packet
                     icmpType, icmpCode = recvPacket[20:22]
 
-                    # Time Exceeded
-                    if icmpType == ICMP_TIME_EXCEEDED:
-                        print("  TTL=%d    RTT=%.0f ms    Type=%d    Code=%d    %s" %
-                                (
-                                    self.getTtl(),
-                                    (timeReceived - pingStartTime) * 1000,
-                                    icmpType,
-                                    icmpCode,
-                                    addr[0]
-                                )
-                              )
+                    # Type 0: Echo Reply
+                    if icmpType == ICMP_ECHOREPLY:
+                        icmpReplyPacket = IcmpHelperLibrary.IcmpPacket_EchoReply(recvPacket)
+                        self.setIcmpReplyPacket(icmpReplyPacket)
+                        self.__validateIcmpReplyPacketWithOriginalPingData(icmpReplyPacket)
+                        icmpReplyPacket.printResultToConsole(self.getTtl(), timeReceived, addr)
 
-                    # Destination Unreachable
+                        # Code 0: No Code 
+                        if icmpCode == 0:
+                            pass
+
+                        # Invalid Code
+                        else:
+                            pass
+
+                        return      # Echo reply is the end and therefore should return
+
+                    # Type 3: Destination Unreachable
                     elif icmpType == ICMP_DEST_UNREACH:
                         print("  TTL=%d    RTT=%.0f ms    Type=%d    Code=%d    %s" %
                                   (
@@ -514,14 +518,259 @@ class IcmpHelperLibrary:
                                   )
                               )
 
-                    # Echo Reply
-                    elif icmpType == ICMP_ECHOREPLY:
-                        icmpReplyPacket = IcmpHelperLibrary.IcmpPacket_EchoReply(recvPacket)
-                        self.setIcmpReplyPacket(icmpReplyPacket)
-                        self.__validateIcmpReplyPacketWithOriginalPingData(icmpReplyPacket)
-                        icmpReplyPacket.printResultToConsole(self.getTtl(), timeReceived, addr)
-                        return      # Echo reply is the end and therefore should return
+                        # Code 0: Network Unreachable
+                        if icmpCode == ICMP_NET_UNREACH:
+                            pass
 
+                        # Code 1: Host Unreachable
+                        elif icmpCode == ICMP_HOST_UNREACH:
+                            pass
+
+                        # Code 2: Protocol Unreachable
+                        elif icmpCode == ICMP_PROT_UNREACH:
+                            pass
+
+                        # Code 3: Port Unreachable
+                        elif icmpCode == ICMP_PORT_UNREACH:
+                            pass
+
+                        # Code 4: Fragmentation Needed/DF Set
+                        elif icmpCode == ICMP_FRAG_NEEDED:
+                            pass
+
+                        # Code 5: Source Route failed
+                        elif icmpCode == ICMP_SR_FAILED:
+                            pass
+
+                        # Code 6: Destination Network Unknown
+                        elif icmpCode == ICMP_NET_UNKNOWN:
+                            pass
+
+                        # Code 7: Destination Host Unknown
+                        elif icmpCode == ICMP_HOST_UNKNOWN:
+                            pass
+
+                        # Code 8: Source Host Isolated
+                        elif icmpCode == ICMP_HOST_ISOLATED:
+                            pass
+
+                        # Code 9: Communication with Destination Network Administratively Prohibited
+                        elif icmpCode == ICMP_NET_ANO:
+                            pass
+
+                        # Code 10: Communication with Destination Host Administratively Prohibited
+                        elif icmpCode == ICMP_HOST_ANO:
+                            pass
+
+                        # Code 11: Destination Network Unreachable for Type of Service
+                        elif icmpCode == ICMP_NET_UNR_TOS:
+                            pass
+
+                        # Code 12: Destination Host Unreachable for Type of Service
+                        elif icmpCode == ICMP_HOST_UNR_TOS:
+                            pass
+
+                        # Code 13: Communication Administratively Prohibited (packet filtered)
+                        elif icmpCode == ICMP_PKT_FILTERED:
+                            pass
+
+                        # Code 14: Host Precedence violation
+                        elif icmpCode == ICMP_PREC_VIOLATION:
+                            pass
+
+                        # Code 15: Precedence cutoff in effect
+                        elif icmpCode == ICMP_PREC_CUTOFF:
+                            pass
+
+                        # Invalid Code
+                        else:
+                            pass
+
+                    # Type 5: Redirect
+                    elif icmpType == ICMP_REDIRECT:
+                        # Code 0: Redirect Datagram for the Network (or subnet)
+                        if icmpCode == ICMP_REDIR_NET:
+                            pass
+
+                        # Code 1: Redirect Datagram for the Host
+                        elif icmpCode == ICMP_REDIR_HOST:
+                            pass
+
+                        # Code 2: Redirect Datagram for TOS and Network
+                        elif icmpCode == ICMP_REDIR_NETTOS:
+                            pass
+
+                        # Code 3: Redirect Datagram for TOS and Host
+                        elif icmpCode == ICMP_REDIR_HOSTTOS:
+                            pass
+
+                        # Invalid Code
+                        else:
+                            pass
+
+                    # Type 8: Echo Request
+                    elif icmpType == ICMP_ECHO:
+                        # Code 0: No Code
+                        if icmpCode == 0:
+                            pass
+
+                        # Invalid Code
+                        else:
+                            pass
+
+                    # Type 9: Router Advertisement
+                    elif icmpType == ICMP_ROUTERADVERT:
+                        # Code 0: Normal router advertisement
+                        if icmpCode == ICMP_ADVERT:
+                            pass
+
+                        # Code 16: Does not route common traffic
+                        elif icmpCode == ICMP_ADVERT_DNR:
+                            pass
+
+                        # Invalid Code
+                        else:
+                            pass
+
+                    # Type 10: Router Solicitation
+                    elif icmpType == ICMP_ROUTERSOLICIT:
+                        # Code 0: No Code
+                        if icmpCode == 0:
+                            pass
+
+                        # Invalid Code
+                        else:
+                            pass
+
+                    # Type 11: Time Exceeded
+                    elif icmpType == ICMP_TIME_EXCEEDED:
+                        print("  TTL=%d    RTT=%.0f ms    Type=%d    Code=%d    %s" %
+                                (
+                                    self.getTtl(),
+                                    (timeReceived - pingStartTime) * 1000,
+                                    icmpType,
+                                    icmpCode,
+                                    addr[0]
+                                )
+                              )
+
+                        # Code 0: TTL Exceeded in Transit
+                        if icmpCode == ICMP_EXC_TTL:
+                            pass
+
+                        # Code 1: Fragment Reassembly Time Exceeded
+                        elif icmpCode == ICMP_EXC_FRAGTIME:
+                            pass
+
+                        # Invalid Code
+                        else:
+                            pass
+
+                    # Type 12: Parameter Problem
+                    elif icmpType == ICMP_PARAMETERPROB:
+                        # Code 0: Pointer indicates the error
+                        if icmpCode == ICMP_PARAM_PTR:
+                            pass
+
+                        # Code 1: Missing a Required Option
+                        elif icmpCode == ICMP_PARAM_MRO:
+                            pass
+
+                        # Code 2: Bad Length
+                        elif icmpCode == ICMP_PARAM_BADLEN:
+                            pass
+
+                        # Invalid Code
+                        else:
+                            pass
+
+                    # Type 13: Timestamp Request
+                    elif icmpType == ICMP_TIMESTAMP:
+                        # Code 0: No Code
+                        if icmpCode == 0:
+                            pass
+
+                        # Invalid Code
+                        else:
+                            pass
+
+                    # Type 14: Timestamp Reply
+                    elif icmpType == ICMP_TIMESTAMPREPLY:
+                        # Code 0: No Code
+                        if icmpCode == 0:
+                            pass
+
+                        # Invalid Code
+                        else:
+                            pass
+
+                    # Type 40: Photuris
+                    elif icmpType == ICMP_PHOTURIS:
+                        # Code 0: Bad SPI
+                        if icmpCode == ICMP_PHOT_BADSPI:
+                            pass
+
+                        # Code 1: Malformed Query
+                        elif icmpCode == ICMP_PHOT_AUTHFAIL:
+                            pass
+
+                        # Code 2: Decompression Failed 
+                        elif icmpCode == ICMP_PHOT_DCMPFAIL:
+                            pass
+
+                        # Code 3: Decryption Failed
+                        elif icmpCode == ICMP_PHOT_DCRYPTFAIL:
+                            pass
+
+                        # Code 4: Need Authentication
+                        elif icmpCode == ICMP_PHOT_NEEDAUTHEN:
+                            pass
+
+                        # Code 5: Need Authorization
+                        elif icmpCode == ICMP_PHOT_NEEDAUTH:
+                            pass
+
+                        # Invalid Code
+                        else:
+                            pass
+
+                    # Type 42: Extended Echo Request
+                    elif icmpType == ICMP_EXT_ECHO:
+                        # Code 0: No Error
+                        if icmpCode == ICMP_EXTECHO:
+                            pass
+
+                        # Code 1-255: Unassigned
+                        else:
+                            pass
+
+                    # Type 43: Extended Echo Reply
+                    elif icmpType == ICMP_EXT_ECHOREPLY:
+                        # Code 0: No Error
+                        if icmpCode == ICMP_EXTREPLY:
+                            pass
+
+                        # Code 1: Malformed Query
+                        elif icmpCode == ICMP_EXTREPLY_QUERY:
+                            pass
+
+                        # Code 2: No Such Interface
+                        elif icmpCode == ICMP_EXTREPLY_IFACE:
+                            pass
+
+                        # Code 3: No Such Table Entry
+                        elif icmpCode == ICMP_EXTREPLY_ENTRY:
+                            pass
+
+                        # Code 4: Multiple Interfaces Satisfy Query
+                        elif icmpCode == ICMP_EXTREPLY_MISQ:
+                            pass
+
+                        # Code 5-255: Unassigned
+                        else:
+                            pass
+
+                    # Invalid Type
                     else:
                         print("error")
             except timeout:
@@ -850,6 +1099,8 @@ class IcmpHelperLibrary:
     def __sendIcmpEchoRequest(self, host):
         print("sendIcmpEchoRequest Started...") if self.__DEBUG_IcmpHelperLibrary else 0
 
+        # Sources: https://serverfault.com/questions/333116/what-does-mdev-mean-in-ping8
+        #          https://serverfault.com/questions/999595/what-does-the-time-field-indicate-in-ping-statistics
         rtts: List[int] = []
         sentPckts: int = 0
 
