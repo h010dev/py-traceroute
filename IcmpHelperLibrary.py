@@ -17,6 +17,98 @@ import time
 
 
 ########################################################################################################################
+# Constants                                                                                                            #
+#                                                                                                                      #
+#                                                                                                                      #
+#                                                                                                                      #
+#                                                                                                                      #
+#                                                                                                                      #
+########################################################################################################################
+########################################################################################################################
+# IcmpType                                                                                                             #
+#                                                                                                                      #
+# References:                                                                                                          #
+# http://www.iana.org/assignments/icmp-parameters/icmp-parameters.xhtmls                                               #
+# http://sites.uclouvain.be/SystInfo/usr/include/netinet/ip_icmp.h.htmls                                               #
+########################################################################################################################
+ICMP_ECHOREPLY       = 0    # Echo Reply
+ICMP_DEST_UNREACH    = 3    # Destination Unreachable
+ICMP_REDIRECT        = 5    # Redirect (change route)
+ICMP_ECHO            = 8    # Echo Request
+ICMP_ROUTERADVERT    = 9    # Router Advertisement
+ICMP_ROUTERSOLICIT   = 10   # Router Solicitation
+ICMP_TIME_EXCEEDED   = 11   # Time Exceeded
+ICMP_PARAMETERPROB   = 12   # Parameter Problem
+ICMP_TIMESTAMP       = 13   # Timestamp Request
+ICMP_TIMESTAMPREPLY  = 14   # Timestamp Reply
+ICMP_PHOTURIS        = 40   # Photuris
+ICMP_EXT_ECHO        = 42   # Extended Echo Request
+ICMP_EXT_ECHOREPLY   = 43   # Extended Echo Reply
+
+########################################################################################################################
+# IcmpCode                                                                                                             #
+#                                                                                                                      #
+# References:                                                                                                          #
+# http://www.iana.org/assignments/icmp-parameters/icmp-parameters.xhtmls                                               #
+# http://sites.uclouvain.be/SystInfo/usr/include/netinet/ip_icmp.h.htmls                                               #
+########################################################################################################################
+# Codes for UNREACH
+ICMP_NET_UNREACH     = 0    # Network Unreachable
+ICMP_HOST_UNREACH    = 1    # Host Unreachable
+ICMP_PROT_UNREACH    = 2    # Protocol Unreachable
+ICMP_PORT_UNREACH    = 3    # Port Unreachable
+ICMP_FRAG_NEEDED     = 4    # Fragmentation Needed/DF set
+ICMP_SR_FAILED       = 5    # Source Route failed
+ICMP_NET_UNKNOWN     = 6    # Destination Network Unknown
+ICMP_HOST_UNKNOWN    = 7    # Destination Host Unknown
+ICMP_HOST_ISOLATED   = 8    # Source Host Isolated
+ICMP_NET_ANO         = 9    # Communication with Destination Network Administratively Prohibited
+ICMP_HOST_ANO        = 10   # Communication with Destination Host Administratively Prohibited
+ICMP_NET_UNR_TOS     = 11   # Destination Network Unreachable for Type of Service
+ICMP_HOST_UNR_TOS    = 12   # Destination Host Unreachable for Type of Service
+ICMP_PKT_FILTERED    = 13   # Communication Administratively Prohibited (packet filtered)
+ICMP_PREC_VIOLATION  = 14   # Host Precedence violation
+ICMP_PREC_CUTOFF     = 15   # Precedence cutoff in effect
+
+# Codes for REDIRECT
+ICMP_REDIR_NET       = 0    # Redirect Datagram for the Network (or subnet)
+ICMP_REDIR_HOST      = 1    # Redirect Datagram for the Host
+ICMP_REDIR_NETTOS    = 2    # Redirect Datagram for TOS and Network
+ICMP_REDIR_HOSTTOS   = 3    # Redirect Datagram for TOS and Host
+
+# Codes for ROUTERADVERT
+ICMP_ADVERT          = 0    # Normal router advertisement
+ICMP_ADVERT_DNR      = 16   # Does not route common traffic
+
+# Codes for TIME_EXCEEDED
+ICMP_EXC_TTL         = 0    # TTL Exceeded in Transit
+ICMP_EXC_FRAGTIME    = 1    # Fragment Reassembly Time Exceeded
+
+# Codes for PARAMETERPROB 
+ICMP_PARAM_PTR       = 0    # Pointer indicates the error
+ICMP_PARAM_MRO       = 1    # Missing a Required Option
+ICMP_PARAM_BADLEN    = 2    # Bad Length
+
+# Codes for PHOTURIS 
+ICMP_PHOT_BADSPI     = 0    # Bad SPI
+ICMP_PHOT_AUTHFAIL   = 1    # Authentication Failed
+ICMP_PHOT_DCMPFAIL   = 2    # Decompression Failed
+ICMP_PHOT_DCRYPTFAIL = 3    # Decryption Failed
+ICMP_PHOT_NEEDAUTHEN = 4    # Need Authentication
+ICMP_PHOT_NEEDAUTH   = 5    # Need Authorization
+
+# Codes for EXT_ECHO
+ICMP_EXTECHO         = 0    # No Error
+
+# Codes for EXT_ECHOREPLY 
+ICMP_EXTREPLY        = 0    # No Error
+ICMP_EXTREPLY_QUERY  = 1    # Malformed Query
+ICMP_EXTREPLY_IFACE  = 2    # No Such Interface
+ICMP_EXTREPLY_ENTRY  = 3    # No Such Table Entry
+ICMP_EXTREPLY_MISQ   = 4    # Multiple Interfaces Satisfy Query
+
+
+########################################################################################################################
 # Class IcmpHelperLibrary                                                                                              #
 #                                                                                                                      #
 #                                                                                                                      #
@@ -33,111 +125,6 @@ import time
 #                                                                                                                      #
 ########################################################################################################################
 class IcmpHelperLibrary:
-    ####################################################################################################################
-    # Enum IcmpType                                                                                                    #
-    #                                                                                                                  #
-    # References:                                                                                                      #
-    # http://www.iana.org/assignments/icmp-parameters/icmp-parameters.xhtmls                                           #
-    # http://sites.uclouvain.be/SystInfo/usr/include/netinet/ip_icmp.h.htmls                                           #
-    #                                                                                                                  #
-    #                                                                                                                  #
-    #                                                                                                                  #
-    #                                                                                                                  #
-    #                                                                                                                  #
-    #                                                                                                                  #
-    #                                                                                                                  #
-    #                                                                                                                  #
-    #                                                                                                                  #
-    ####################################################################################################################
-    class IcmpType(Enum):
-        ICMP_ECHOREPLY       = 0    # Echo Reply
-        ICMP_DEST_UNREACH    = 3    # Destination Unreachable
-        ICMP_REDIRECT        = 5    # Redirect (change route)
-        ICMP_ECHO            = 8    # Echo Request
-        ICMP_ROUTERADVERT    = 9    # Router Advertisement
-        ICMP_ROUTERSOLICIT   = 10   # Router Solicitation
-        ICMP_TIME_EXCEEDED   = 11   # Time Exceeded
-        ICMP_PARAMETERPROB   = 12   # Parameter Problem
-        ICMP_TIMESTAMP       = 13   # Timestamp Request
-        ICMP_TIMESTAMPREPLY  = 14   # Timestamp Reply
-        ICMP_PHOTURIS        = 40   # Photuris
-        ICMP_EXT_ECHO        = 42   # Extended Echo Request
-        ICMP_EXT_ECHOREPLY   = 43   # Extended Echo Reply
-
-
-    ####################################################################################################################
-    # Enum IcmpCode                                                                                                    #
-    #                                                                                                                  #
-    # References:                                                                                                      #
-    # http://www.iana.org/assignments/icmp-parameters/icmp-parameters.xhtmls                                           #
-    # http://sites.uclouvain.be/SystInfo/usr/include/netinet/ip_icmp.h.htmls                                           #
-    #                                                                                                                  #
-    #                                                                                                                  #
-    #                                                                                                                  #
-    #                                                                                                                  #
-    #                                                                                                                  #
-    #                                                                                                                  #
-    #                                                                                                                  #
-    #                                                                                                                  #
-    #                                                                                                                  #
-    ####################################################################################################################
-    class IcmpCode(Enum):
-        # Codes for UNREACH
-        ICMP_NET_UNREACH     = 0    # Network Unreachable
-        ICMP_HOST_UNREACH    = 1    # Host Unreachable
-        ICMP_PROT_UNREACH    = 2    # Protocol Unreachable
-        ICMP_PORT_UNREACH    = 3    # Port Unreachable
-        ICMP_FRAG_NEEDED     = 4    # Fragmentation Needed/DF set
-        ICMP_SR_FAILED       = 5    # Source Route failed
-        ICMP_NET_UNKNOWN     = 6    # Destination Network Unknown
-        ICMP_HOST_UNKNOWN    = 7    # Destination Host Unknown
-        ICMP_HOST_ISOLATED   = 8    # Source Host Isolated
-        ICMP_NET_ANO         = 9    # Communication with Destination Network Administratively Prohibited
-        ICMP_HOST_ANO        = 10   # Communication with Destination Host Administratively Prohibited
-        ICMP_NET_UNR_TOS     = 11   # Destination Network Unreachable for Type of Service
-        ICMP_HOST_UNR_TOS    = 12   # Destination Host Unreachable for Type of Service
-        ICMP_PKT_FILTERED    = 13   # Communication Administratively Prohibited (packet filtered)
-        ICMP_PREC_VIOLATION  = 14   # Host Precedence violation
-        ICMP_PREC_CUTOFF     = 15   # Precedence cutoff in effect
-
-        # Codes for REDIRECT
-        ICMP_REDIR_NET       = 0    # Redirect Datagram for the Network (or subnet)
-        ICMP_REDIR_HOST      = 1    # Redirect Datagram for the Host
-        ICMP_REDIR_NETTOS    = 2    # Redirect Datagram for TOS and Network
-        ICMP_REDIR_HOSTTOS   = 3    # Redirect Datagram for TOS and Host
-
-        # Codes for ROUTERADVERT
-        ICMP_ADVERT          = 0    # Normal router advertisement
-        ICMP_ADVERT_DNR      = 16   # Does not route common traffic
-
-        # Codes for TIME_EXCEEDED
-        ICMP_EXC_TTL         = 0    # TTL Exceeded in Transit
-        ICMP_EXC_FRAGTIME    = 1    # Fragment Reassembly Time Exceeded
-
-        # Codes for PARAMETERPROB 
-        ICMP_PARAM_PTR       = 0    # Pointer indicates the error
-        ICMP_PARAM_MRO       = 1    # Missing a Required Option
-        ICMP_PARAM_BADLEN    = 2    # Bad Length
-
-        # Codes for PHOTURIS 
-        ICMP_PHOT_BADSPI     = 0    # Bad SPI
-        ICMP_PHOT_AUTHFAIL   = 1    # Authentication Failed
-        ICMP_PHOT_DCMPFAIL   = 2    # Decompression Failed
-        ICMP_PHOT_DCRYPTFAIL = 3    # Decryption Failed
-        ICMP_PHOT_NEEDAUTHEN = 4    # Need Authentication
-        ICMP_PHOT_NEEDAUTH   = 5    # Need Authorization
-
-        # Codes for EXT_ECHO
-        ICMP_EXTECHO         = 0    # No Error
-
-        # Codes for EXT_ECHOREPLY 
-        ICMP_EXTREPLY        = 0    # No Error
-        ICMP_EXTREPLY_QUERY  = 1    # Malformed Query
-        ICMP_EXTREPLY_IFACE  = 2    # No Such Interface
-        ICMP_EXTREPLY_ENTRY  = 3    # No Such Table Entry
-        ICMP_EXTREPLY_MISQ   = 4    # Multiple Interfaces Satisfy Query
-
-
     ####################################################################################################################
     # Class IcmpPacket                                                                                                 #
     #                                                                                                                  #
@@ -503,7 +490,8 @@ class IcmpHelperLibrary:
                     # Fetch the ICMP type and code from the received packet
                     icmpType, icmpCode = recvPacket[20:22]
 
-                    if icmpType == 11:                          # Time Exceeded
+                    # Time Exceeded
+                    if icmpType == ICMP_TIME_EXCEEDED:
                         print("  TTL=%d    RTT=%.0f ms    Type=%d    Code=%d    %s" %
                                 (
                                     self.getTtl(),
@@ -514,7 +502,8 @@ class IcmpHelperLibrary:
                                 )
                               )
 
-                    elif icmpType == 3:                         # Destination Unreachable
+                    # Destination Unreachable
+                    elif icmpType == ICMP_DEST_UNREACH:
                         print("  TTL=%d    RTT=%.0f ms    Type=%d    Code=%d    %s" %
                                   (
                                       self.getTtl(),
@@ -525,8 +514,9 @@ class IcmpHelperLibrary:
                                   )
                               )
 
-                    elif icmpType == 0:                         # Echo Reply
-                        icmpReplyPacket: IcmpPacket_EchoReply = IcmpHelperLibrary.IcmpPacket_EchoReply(recvPacket)
+                    # Echo Reply
+                    elif icmpType == ICMP_ECHOREPLY:
+                        icmpReplyPacket = IcmpHelperLibrary.IcmpPacket_EchoReply(recvPacket)
                         self.setIcmpReplyPacket(icmpReplyPacket)
                         self.__validateIcmpReplyPacketWithOriginalPingData(icmpReplyPacket)
                         icmpReplyPacket.printResultToConsole(self.getTtl(), timeReceived, addr)
