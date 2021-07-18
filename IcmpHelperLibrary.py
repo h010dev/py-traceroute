@@ -6,6 +6,7 @@
 #                                                                                                                      #
 #                                                                                                                      #
 ########################################################################################################################
+import argparse                     # used for parsing command line args
 from enum import Enum               # used for creating Service class
 import os
 import select
@@ -1170,6 +1171,50 @@ class IcmpHelperLibrary:
 
 
 ########################################################################################################################
+# testPing()                                                                                                           #
+#                                                                                                                      #
+#                                                                                                                      #
+#                                                                                                                      #
+#                                                                                                                      #
+#                                                                                                                      #
+########################################################################################################################
+def testPing():
+    icmpHelperPing = IcmpHelperLibrary()
+
+    icmpHelperPing.sendPing("127.0.0.1")
+    print('=' * 100)
+    icmpHelperPing.sendPing("209.233.126.254")
+    print('=' * 100)
+    icmpHelperPing.sendPing("sape.com.au")
+    print('=' * 100)
+    icmpHelperPing.sendPing("www.google.com")
+    print('=' * 100)
+    icmpHelperPing.sendPing("oregonstate.edu")
+    print('=' * 100)
+    icmpHelperPing.sendPing("gaia.cs.umass.edu")
+    print('=' * 100)
+
+
+########################################################################################################################
+# testTraceroute()                                                                                                     #
+#                                                                                                                      #
+#                                                                                                                      #
+#                                                                                                                      #
+#                                                                                                                      #
+#                                                                                                                      #
+########################################################################################################################
+def testTraceroute():
+    icmpHelperPing = IcmpHelperLibrary()
+
+    icmpHelperPing.traceRoute("oregonstate.edu")
+    print('=' * 100)
+    icmpHelperPing.traceRoute("google.com")
+    print('=' * 100)
+    icmpHelperPing.traceRoute("localhost")
+    print()
+
+
+########################################################################################################################
 # main()                                                                                                               #
 #                                                                                                                      #
 #                                                                                                                      #
@@ -1178,28 +1223,27 @@ class IcmpHelperLibrary:
 #                                                                                                                      #
 ########################################################################################################################
 def main():
-    icmpHelperPing = IcmpHelperLibrary()
+    args = parser.parse_args()
 
-    # Choose one of the following by uncommenting out the line
-    icmpHelperPing.sendPing("127.0.0.1")
-    print('=' * 100)
-    icmpHelperPing.sendPing("209.233.126.254")
-    print('=' * 100)
-    # icmpHelperPing.sendPing("sape.com.au")
-    # print('=' * 100)
-    icmpHelperPing.sendPing("www.google.com")
-    print('=' * 100)
-    icmpHelperPing.sendPing("oregonstate.edu")
-    print('=' * 100)
-    icmpHelperPing.sendPing("gaia.cs.umass.edu")
-    print('=' * 100)
-    # icmpHelperPing.traceRoute("oregonstate.edu")
-    # print('=' * 100)
-    icmpHelperPing.traceRoute("google.com")
-    print('=' * 100)
-    icmpHelperPing.traceRoute("localhost")
-    print()
+    if args.action == "test":
+        if args.value == "ping":
+            return testPing()
+        if args.value == "trace":
+            return testTraceroute()
+
+    if args.action == "ping":
+        icmp = IcmpHelperLibrary()
+        return icmp.sendPing(args.value)
+
+    if args.action == "traceroute":
+        icmp = IcmpHelperLibrary()
+        return icmp.traceRoute(args.value)
+
+    print("Usage: <action> <value>")
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("action")
+    parser.add_argument("value")
     main()
