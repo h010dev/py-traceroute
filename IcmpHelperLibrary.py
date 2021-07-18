@@ -6,10 +6,11 @@
 #                                                                                                                      #
 #                                                                                                                      #
 ########################################################################################################################
+from enum import Enum               # used for creating Service class
 import os
 import select
 from socket import *
-from statistics import stdev 
+from statistics import stdev        # used for computing RTT standard deviation
 import struct
 import time
 
@@ -78,6 +79,27 @@ ICMP_PARAM_BADLEN    = 2    # Bad Length
 
 
 ########################################################################################################################
+# Class Service                                                                                                        #
+#                                                                                                                      #
+# Enum class to store available services that program can use                                                          #
+#                                                                                                                      #
+#                                                                                                                      #
+#                                                                                                                      #
+#                                                                                                                      #
+#                                                                                                                      #
+#                                                                                                                      #
+#                                                                                                                      #
+#                                                                                                                      #
+#                                                                                                                      #
+#                                                                                                                      #
+#                                                                                                                      #
+########################################################################################################################
+class Service(Enum):
+    PING       = 0
+    TRACEROUTE = 1
+
+
+########################################################################################################################
 # Class IcmpHelperLibrary                                                                                              #
 #                                                                                                                      #
 #                                                                                                                      #
@@ -119,21 +141,24 @@ class IcmpHelperLibrary:
         #                                                                                                              #
         #                                                                                                              #
         ################################################################################################################
-        __icmpTarget: str = ""                # Remote Host
-        __destinationIpAddress: str = ""      # Remote Host IP Address
-        __header: bytes = b''                 # Header after byte packing
-        __data: bytes = b''                   # Data after encoding
-        __dataRaw: str = ""                   # Raw string data before encoding
-        __icmpType: int = 0                   # Valid values are 0-255 (unsigned int, 8 bits)
-        __icmpCode: int = 0                   # Valid values are 0-255 (unsigned int, 8 bits)
-        __packetChecksum: int = 0             # Valid values are 0-65535 (unsigned short, 16 bits)
-        __packetIdentifier: int = 0           # Valid values are 0-65535 (unsigned short, 16 bits)
-        __packetSequenceNumber: int = 0       # Valid values are 0-65535 (unsigned short, 16 bits)
+        __icmpTarget: str = ""                        # Remote Host
+        __destinationIpAddress: str = ""              # Remote Host IP Address
+        __header: bytes = b''                         # Header after byte packing
+        __data: bytes = b''                           # Data after encoding
+        __dataRaw: str = ""                           # Raw string data before encoding
+        __icmpType: int = 0                           # Valid values are 0-255 (unsigned int, 8 bits)
+        __icmpCode: int = 0                           # Valid values are 0-255 (unsigned int, 8 bits)
+        __packetChecksum: int = 0                     # Valid values are 0-65535 (unsigned short, 16 bits)
+        __packetIdentifier: int = 0                   # Valid values are 0-65535 (unsigned short, 16 bits)
+        __packetSequenceNumber: int = 0               # Valid values are 0-65535 (unsigned short, 16 bits)
         __ipTimeout: int = 30
-        __ttl: int = 255                      # Time to live
-        __icmpReplyPacket = None              # ICMP reply packet
+        __ttl: int = 255                              # Time to live
+        __icmpReplyPacket = None                      # ICMP reply packet
+        __service = Service(Service.PING)             # Service this packet class will offer (default to PING)
+        __rcvTime: float = 0.0                        # Reply message receive time
+        __rcvAddr: tuple = ('', '')                   # Reply message address
 
-        __DEBUG_IcmpPacket: bool = False      # Allows for debug output
+        __DEBUG_IcmpPacket: bool = False              # Allows for debug output
 
         ################################################################################################################
         # IcmpPacket Class Getters                                                                                     #
@@ -145,6 +170,9 @@ class IcmpHelperLibrary:
         ################################################################################################################
         def getIcmpTarget(self) -> str:
             return self.__icmpTarget
+
+        def getDestinationIpAddress(self) -> str:
+            return self.__destinationIpAddress
 
         def getDataRaw(self) -> str:
             return self.__dataRaw
@@ -169,6 +197,12 @@ class IcmpHelperLibrary:
 
         def getIcmpReplyPacket(self):
             return self.__icmpReplyPacket
+
+        def getRcvTime(self) -> float:
+            return self.__rcvTime
+
+        def getRcvAddr(self) -> tuple:
+            return self.__rcvAddr
 
         ################################################################################################################
         # IcmpPacket Class Setters                                                                                     #
@@ -205,6 +239,15 @@ class IcmpHelperLibrary:
 
         def setIcmpReplyPacket(self, reply) -> None:
             self.__icmpReplyPacket = reply
+
+        def setService(self, service) -> None:
+            self.__service = service
+
+        def setRcvTime(self, t: float) -> None:
+            self.__rcvTime = t
+
+        def setRcvAddr(self, addr: tuple) -> None:
+            self.__rcvAddr = addr
 
         ################################################################################################################
         # IcmpPacket Class Private Functions                                                                           #
@@ -381,7 +424,8 @@ class IcmpHelperLibrary:
             if len(self.__icmpTarget.strip()) <= 0 | len(self.__destinationIpAddress.strip()) <= 0:
                 self.setIcmpTarget("127.0.0.1")
 
-            print("Pinging (" + self.__icmpTarget + ") " + self.__destinationIpAddress)
+            if self.__service == Service.PING:
+                print("Pinging (" + self.__icmpTarget + ") " + self.__destinationIpAddress)
 
             mySocket = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP)
             mySocket.settimeout(self.__ipTimeout)
@@ -396,13 +440,20 @@ class IcmpHelperLibrary:
                 endSelect = time.time()
                 howLongInSelect = (endSelect - startedSelect)
                 if whatReady[0] == []:  # Timeout
-                    print("  *        *        *        *        *    Request timed out.")
+                    if self.__service == Service.PING:
+                        print("  *        *        *        *        *    Request timed out.")
+
                 recvPacket, addr = mySocket.recvfrom(1024)  # recvPacket - bytes object representing data received
-                # addr  - address of socket sending data
+                                                            # addr  - address of socket sending data
                 timeReceived = time.time()
+                if self.__service == Service.TRACEROUTE:
+                    self.setRcvTime(timeReceived)
+                    self.setRcvAddr(addr)
+
                 timeLeft = timeLeft - howLongInSelect
                 if timeLeft <= 0:
-                    print("  *        *        *        *        *    Request timed out (By no remaining time left).")
+                    if self.__service == Service.PING:
+                        print("  *        *        *        *        *    Request timed out (By no remaining time left).")
                 else:
                     # Extract ICMP Reply Packet
                     self.setIcmpReplyPacket(IcmpHelperLibrary.IcmpPacket_EchoReply(recvPacket))
@@ -428,30 +479,33 @@ class IcmpHelperLibrary:
                         # Fetch the ICMP type and code from the received packet
                         icmpType, icmpCode = recvPacket[20:22]
 
+                        # Store debug msg for later display
+                        debugMsg: str = ''
+
                         # Type 0: Echo Reply
                         if icmpType == ICMP_ECHOREPLY:
+                            debugMsg += "[Echo Reply]"
 
-                            # Code 0: Default 
-                            if icmpCode == 0:
-                                self.__validateIcmpReplyPacketWithOriginalPingData(self.getIcmpReplyPacket())
-                                self.getIcmpReplyPacket().printResultToConsole(self.getTtl(), timeReceived, addr)
+                            if self.__service == Service.PING:
+                                # Code 0: Default 
+                                if icmpCode == 0:
+                                   self.__validateIcmpReplyPacketWithOriginalPingData(self.getIcmpReplyPacket())
+                                   self.getIcmpReplyPacket().printResultToConsole(self.getTtl(), timeReceived, addr)
 
-                            # Generate detailed debug message
-                            if self.__DEBUG_IcmpPacket:
-                                self.generateDetailedDebugMsg()
+                                # Generate detailed debug message
+                                if self.__DEBUG_IcmpPacket:
+                                   self.generateDetailedDebugMsg()
 
-                            # Echo reply is the end and therefore should return
-                            return
+                                # Echo reply is the end and therefore should return
+                                return
 
                         # Handle other Types 
                         else:
-                            # Store debug msg for later display
-                            debugMsg: str = '' 
-
-                            # Add message stats to debug
-                            # Format (ex): TTL=255   RTT=100 ms   Type=3    Code=0    172.0.0.1   [Network Unreachable]
-                            debugMsg += f"  TTL={self.getTtl()}    RTT={(timeReceived - pingStartTime) * 1000:.0f} ms"
-                            debugMsg += f"    Type={icmpType}    Code={icmpCode}    {addr[0]}    " 
+                            if self.__service == Service.PING:
+                                # Add message stats to debug
+                                # Format (ex): TTL=255   RTT=100 ms  Type=3   Code=0   172.0.0.1   [Network Unreachable]
+                                debugMsg += f"  TTL={self.getTtl()}    RTT={(timeReceived - pingStartTime) * 1000:.0f} ms"
+                                debugMsg += f"    Type={icmpType}    Code={icmpCode}    {addr[0]}    " 
 
                             # Type 3: Destination Unreachable
                             if icmpType == ICMP_DEST_UNREACH:
@@ -577,7 +631,9 @@ class IcmpHelperLibrary:
                             else:
                                 debugMsg += "[Unhandled Type]"
 
-                            print(debugMsg)
+                            # NOTE: displaying debug for every ping sent via traceroute is too messy, so it is not done
+                            if self.__service == Service.PING:
+                                print(debugMsg)
 
                     # ICMP Reply Packet had an invalid Checksum; discard
                     else:
@@ -585,12 +641,9 @@ class IcmpHelperLibrary:
                         print(f"[{self.getIcmpReplyPacket().getPacketChecksum()}", end='/')
                         print(f"{self.getIcmpReplyPacket().getComputedChecksum()}]")
 
-                    # Generate detailed debug message for all ICMP messages
-                    if self.__DEBUG_IcmpPacket:
-                        self.generateDetailedDebugMsg()
-
             except timeout:
-                print("  *        *        *        *        *    Request timed out (By Exception).")
+                if self.__service == Service.PING:
+                    print("  *        *        *        *        *    Request timed out (By Exception).")
             finally:
                 mySocket.close()
 
@@ -610,15 +663,16 @@ class IcmpHelperLibrary:
             self.printIcmpPacketData_hex()
 
         def generateDetailedDebugMsg(self) -> None:
+            # Display a detailed debug message showing all ICMP message fields and expected values.
+            # Only to be used for ICMP Echo Reply messages, as reply messages have varying structures.
+            # Reference: https://en.wikipedia.org/wiki/Internet_Control_Message_Protocol
+
             expCode: int = 0
             header: list = ["Status", "Field", "Expected", "Actual"]
             expTimestamp: float = struct.unpack("d", self.__data[:8])[0]
 
             # Extract ICMP message
             icmpReplyPacket = self.getIcmpReplyPacket()
-
-            # Validate message fields
-            self.__validateIcmpReplyPacketWithOriginalPingData(icmpReplyPacket)
 
             # Format: [Status]    Field    Expected    Actual
             print('\n' + 51 * '=' + " ICMP Packet Echo Reply " + 51 * '=')
@@ -946,7 +1000,7 @@ class IcmpHelperLibrary:
                 print(f"\n{self.getErrMsgs()}")
 
             bytes = struct.calcsize("d")
-            timeSent = struct.unpack("d", self.__recvPacket[28:28 + bytes])[0]
+            timeSent = self.getDateTimeSent()
             self.setRtt((timeReceived - timeSent) * 1000)
             print("  TTL=%d    RTT=%.0f ms    Type=%d    Code=%d        Identifier=%d    Sequence Number=%d    %s" %
                   (
@@ -1012,9 +1066,6 @@ class IcmpHelperLibrary:
 
             icmpPacket.printIcmpPacketHeader_hex() if self.__DEBUG_IcmpHelperLibrary else 0
             icmpPacket.printIcmpPacket_hex() if self.__DEBUG_IcmpHelperLibrary else 0
-            # TODO
-            # we should be confirming values are correct, such as identifier and sequence number and data
-            # Parse ICMP response error codes and display corresponding error results to user.
 
             sentPckts += 1
             if icmpPacket.getIcmpReplyPacket() is not None:
@@ -1033,8 +1084,73 @@ class IcmpHelperLibrary:
 
     def __sendIcmpTraceRoute(self, host):
         print("sendIcmpTraceRoute Started...") if self.__DEBUG_IcmpHelperLibrary else 0
-        # TODO
-        # Build code for trace route here
+
+        # References: 
+        #     https://github.com/openbsd/src/blob/master/usr.sbin/traceroute/traceroute.c
+        #     UNIX Network Programming
+
+        # 30 hops max
+        maxTtl: int = 30
+
+        # 3 pings per hop
+        numProbes: int = 3
+
+        seq: int = 1
+
+        print(f"traceroute to {host} ({gethostbyname(host.strip()) if len(host) > 0 else host}), {maxTtl} hops max")
+        for ttl in range(1, maxTtl + 1):
+            # Reference: (https://en.wikipedia.org/wiki/List_of_TCP_and_UDP_port_numbers)
+            destPort: int = 33434
+
+            print(f"{ttl:2}  ", end='')
+
+            # Send numProbes pings to destination
+            for probe in range(1, numProbes + 1):
+
+                # Build packet
+                icmpPacket = IcmpHelperLibrary.IcmpPacket()
+                icmpPacket.setService(Service.TRACEROUTE)
+
+                # Build ICMP for IP payload
+                icmpPacket.buildPacket_echoRequest((os.getpid() & 0xffff), seq)
+                icmpPacket.setIcmpTarget(host)
+                icmpPacket.setTtl(ttl)
+
+                # Track when packet is being sent
+                # NOTE: 
+                #     Can't use reply header as ICMP Time Exceeded message is not same as ICMP Echo Reply
+                # Reference: http://www.networksorcery.com/enp/protocol/icmp/msg11.htm
+                tSend = time.time()
+
+                # Sent packet
+                icmpPacket.sendEchoRequest()
+
+                # Timeout occurred
+                if icmpPacket.getIcmpReplyPacket() is None:
+                    print(" *", end=' ')
+                    continue
+
+                # Display hostname and IP address of current hop
+                if probe == 1:
+                    addr = icmpPacket.getRcvAddr()[0]
+                    try:
+                        hostname = gethostbyaddr(addr)[0]
+                    except error:
+                        hostname = addr
+                    print(f"{hostname:52} {'(' + addr + ')':18}  ", end='')
+
+                # Display RTT stats for current host
+                print(f"{(icmpPacket.getRcvTime() - tSend) * 1000:8.3f} ms", end=' ')
+
+                seq += 1
+
+            # Reached destination
+            if icmpPacket.getIcmpReplyPacket() is not None:
+                if icmpPacket.getRcvAddr()[0] == icmpPacket.getDestinationIpAddress():
+                    print()
+                    return
+
+            print()
 
     ####################################################################################################################
     # IcmpHelperLibrary Public Functions                                                                               #
@@ -1064,15 +1180,25 @@ class IcmpHelperLibrary:
 def main():
     icmpHelperPing = IcmpHelperLibrary()
 
-
     # Choose one of the following by uncommenting out the line
     icmpHelperPing.sendPing("127.0.0.1")
+    print('=' * 100)
     icmpHelperPing.sendPing("209.233.126.254")
+    print('=' * 100)
     # icmpHelperPing.sendPing("sape.com.au")
+    # print('=' * 100)
     icmpHelperPing.sendPing("www.google.com")
+    print('=' * 100)
     icmpHelperPing.sendPing("oregonstate.edu")
+    print('=' * 100)
     icmpHelperPing.sendPing("gaia.cs.umass.edu")
+    print('=' * 100)
     # icmpHelperPing.traceRoute("oregonstate.edu")
+    # print('=' * 100)
+    icmpHelperPing.traceRoute("google.com")
+    print('=' * 100)
+    icmpHelperPing.traceRoute("localhost")
+    print()
 
 
 if __name__ == "__main__":
