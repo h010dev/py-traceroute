@@ -1228,7 +1228,7 @@ def main():
     if args.action == "test":
         if args.value == "ping":
             return testPing()
-        if args.value == "trace":
+        if args.value == "traceroute":
             return testTraceroute()
 
     if args.action == "ping":
